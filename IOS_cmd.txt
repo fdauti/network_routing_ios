@@ -1,0 +1,343 @@
+
+#Starter:
+enab
+conf t 
+hostname <name>
+no ip domain-lookup
+line con 0 
+exec-timeout 0 0
+logging synchronous 
+exit
+do wr
+!
+
+#Building A Distribution (OSPF) Network = DHCP Server
+#Configure DHCP pools on Building A Distribution (OSPF) Network
+#A_Router
+int g0/0
+no shut
+!
+int g0/0.5
+encapsulation dot1q 5
+ip addr 192.168.51.1 255.255.255.224
+!
+int g0/0.10
+encapsulation dot1q 10
+ip addr 192.168.51.33 255.255.255.224
+!
+int g0/0.15
+encapsulation dot1q 15
+ip addr 192.168.51.65 255.255.255.224
+!
+int g0/0.20
+encapsulation dot1q 20
+ip addr 192.168.51.97 255.255.255.224
+!
+int g0/1
+ip address 10.51.0.9 255.255.255.252
+no shut
+!
+int g0/2
+ip address 10.51.0.6 255.255.255.252
+no shut
+!
+ip dhcp pool net5 
+network 192.168.51.0 255.255.255.224
+default-router 192.168.51.1
+! 
+ip dhcp pool net10 
+network 192.168.51.32 255.255.255.224
+default-router 192.168.51.33
+!
+ip dhcp pool net15 
+network 192.168.51.64 255.255.255.224
+default-router 192.168.51.65
+!
+ip dhcp pool net20
+network 192.168.51.96 255.255.255.224
+default-router 192.168.51.97
+!
+ip dhcp pool net25 
+network 172.16.51.0 255.255.255.240
+default-router 172.16.51.1
+! 
+ip dhcp pool net30 
+network 172.16.51.16 255.255.255.240
+default-router 172.16.51.17
+!
+ip dhcp pool net35 
+network 172.16.51.32 255.255.255.240
+default-router 172.16.51.33
+!
+ip dhcp pool net40
+network 172.16.51.48 255.255.255.240
+default-router 172.16.51.49
+!
+#avoid initial DHCPD-4-PING_CONFLICT
+ip dhcp excluded-address 192.168.51.1
+ip dhcp excluded-address 192.168.51.33
+ip dhcp excluded-address 192.168.51.65
+ip dhcp excluded-address 192.168.51.97
+ip dhcp excluded-address 172.16.51.1
+ip dhcp excluded-address 172.16.51.17
+ip dhcp excluded-address 172.16.51.33
+ip dhcp excluded-address 172.16.51.49
+!
+
+#Building A1 VTP Server = fdauti_1
+#Building A1 is root switcvh for it's segement
+#A1
+vtp mode server
+vtp domain fdauti_1
+spanning-tree vlan 1,5,15,20,25 root primary
+!
+#A2
+vtp mode client
+vtp domain fdauti_1
+!
+#A3
+vtp mode client
+vtp domain fdauti_1
+!
+
+#Building A4 VTP Server = fdauti_2
+#Building A4 is root switch for it's segment
+#A4
+vtp mode server
+vtp domain fdauti_2
+spanning-tree vlan 1,25,30,35,40 root primary
+!
+#A5
+vtp mode client
+vtp domain fdauti_2
+!
+
+#Configure an etherchannel where redundant L2 links exists
+#A4
+int range f0/22-24
+channel-group 1 mode desirable
+!
+#A5
+int range f0/22-24
+channel-group 1 mode desirable
+!
+
+#Configure all trunks to only allow traffic to and from vlans within the topology
+#Configure unused ports into a dummy vlan (99)
+#Configure switch ports connected to PCs with portfast
+#A1
+vlan 5
+vlan 10
+vlan 15
+vlan 20
+vlan 99
+!
+int g1/1
+switchport mode trunk
+switchport trunk allowed vlan 5,10,15,20
+!
+int g2/1
+switchport mode trunk
+switchport trunk allowed vlan 5,10,15,20
+!
+int g0/1
+switchport mode trunk
+switchport trunk allowed vlan 5,10,15,20
+!
+#A2
+int g0/1
+switchport mode trunk
+switchport trunk allowed vlan 5,10,15,20
+!
+int f0/1
+switchport access vlan 5
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/2
+switchport access vlan 10
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/3
+switchport access vlan 15
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int g0/2
+switchport access vlan 99
+!
+#A3
+int g0/1
+switchport mode trunk
+switchport trunk allowed vlan 5,10,15,20
+!
+int f0/1
+switchport access vlan 20
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/2
+switchport access vlan 10
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/3
+switchport access vlan 15
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int g0/2
+switchport access vlan 99
+!
+#A4_MLS
+vlan 25
+vlan 30
+vlan 35
+vlan 40
+vlan 99
+!
+int vlan 25
+ip addr 172.16.51.1 255.255.255.240
+ip helper-address 192.168.51.1
+int vlan 30
+ip addr 172.16.51.17 255.255.255.240
+ip helper-address 192.168.51.1
+int vlan 35
+ip addr 172.16.51.33 255.255.255.240
+ip helper-address 192.168.51.1
+int vlan 40
+ip addr 172.16.51.49 255.255.255.240
+ip helper-address 192.168.51.1
+!
+int g0/2
+no switchport
+ip address 10.51.0.5 255.255.255.252
+no shut
+!
+int f0/1
+switchport access vlan 25
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/2
+switchport access vlan 30
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/3
+switchport access vlan 35
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int range f0/4-21
+switchport access vlan 99
+!
+int g0/1
+switchport access vlan 99
+!
+#int range f0/22-24
+int po1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk allowed vlan 25,30,35,40
+!
+#A5
+#int range f0/22-24
+int po1
+switchport mode trunk
+switchport trunk allowed vlan 25,30,35,40
+!
+int f0/1
+switchport access vlan 40
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/2
+switchport access vlan 30
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int f0/3
+switchport access vlan 25
+spanning-tree portfast
+spanning-tree bpduguard enable
+!
+int range f0/4-21
+switchport access vlan 99
+!
+int range g0/1-2
+switchport access vlan 99
+!
+
+#Configure OSPF Protocol (on all required devices) to allow connectivity between VLANS 
+#A_Router
+router ospf 1
+network 10.51.0.4 0.0.0.3 area 0
+network 10.51.0.8 0.0.0.3 area 0
+network 192.168.51.0 0.0.0.31 area 0
+network 192.168.51.32 0.0.0.31 area 0
+network 192.168.51.64 0.0.0.31 area 0
+network 192.168.51.96 0.0.0.31 area 0
+!
+#A4_MLS
+ip routing
+router ospf 1
+network 10.51.0.4 0.0.0.3 area 0
+network 172.16.51.0 0.0.0.15 area 0
+network 172.16.51.16 0.0.0.15 area 0
+network 172.16.51.32 0.0.0.15 area 0
+network 172.16.51.48 0.0.0.15 area 0
+!
+#Core
+int g0/0
+ip addr 10.51.0.10 255.255.255.252
+no shut
+int g0/1 
+ip addr 10.85.0.14 255.255.255.252
+no shut
+int g0/2 
+ip addr 18.0.0.2 255.255.255.252
+no shut
+!
+ip route 0.0.0.0 0.0.0.0 18.0.0.1
+!
+router ospf 1
+network 18.0.0.0 0.0.0.3 area 0
+network 10.51.0.8 0.0.0.3 area 0
+default-information originate
+redistribute eigrp 100 subnets
+!
+router eigrp 100
+network 18.0.0.0 0.0.0.3
+network 10.85.0.12 255.255.255.252
+no auto-summary
+redistribute static
+redistribute ospf 1 metric 1000000 10 255 1 1500
+!
+#Core router NAT
+ip nat pool ndd430b 18.0.0.2 18.0.0.2 netmask 255.255.255.252
+access-list 1 permit 172.16.51.0 0.0.0.15
+access-list 1 permit 172.16.51.16 0.0.0.15
+access-list 1 permit 172.16.51.32 0.0.0.15
+access-list 1 permit 172.16.51.48 0.0.0.15
+access-list 1 permit 192.168.51.0 0.0.0.31
+access-list 1 permit 192.168.51.32 0.0.0.31
+access-list 1 permit 192.168.51.64 0.0.0.31
+access-list 1 permit 192.168.51.96 0.0.0.31
+access-list 1 permit 172.16.85.64 0.0.0.15
+access-list 1 permit 172.16.85.80 0.0.0.15
+access-list 1 permit 172.16.85.96 0.0.0.15
+access-list 1 permit 172.16.85.112 0.0.0.15
+access-list 1 permit 192.168.85.128 0.0.0.31
+access-list 1 permit 192.168.85.160 0.0.0.31
+access-list 1 permit 192.168.85.192 0.0.0.31
+access-list 1 permit 192.168.85.224 0.0.0.31
+ip nat inside source list 1 pool ndd430b overload
+int g0/2
+ip nat outside
+int g0/0
+ip nat inside
+int g0/1
+ip nat inside
+!
